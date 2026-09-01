@@ -85,8 +85,13 @@ if user_query := st.chat_input("Ask something about the document..."):
         st.markdown(user_query)
 
     with st.chat_message("assistant"):
+        # app.py mein replaces karein:
         if is_greeting:
-            answer = "Hello! Upload a document and click 'Process & Index Document' to get started."
+            if st.session_state.get("rag_chain"):
+                doc_name = st.session_state.get("file_name", "document")
+                answer = f"Hello! I am ready to analyze your `{doc_name}` file. What do you want to know ?"
+            else:
+                answer = "Hello! Upload a document and click 'Process & Index Document' to get started."
             st.markdown(answer)
         elif not st.session_state.rag_chain:
             answer = "Please index a document using the sidebar first."
