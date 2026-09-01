@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -23,7 +24,6 @@ def build_vectorstore(chunks, index_name="rag-pdf-index", namespace="default"):
     pc = Pinecone(api_key=pinecone_key)
     existing_indexes = [idx.name for idx in pc.list_indexes()]
 
-    # Index create karein agar pehle se nahi bana
     if index_name not in existing_indexes:
         pc.create_index(
             name=index_name,
@@ -32,17 +32,15 @@ def build_vectorstore(chunks, index_name="rag-pdf-index", namespace="default"):
             spec=ServerlessSpec(cloud="aws", region="us-east-1")
         )
 
-    # -------------------------------------------------------------
-    # AUTO-CLEAR MEMORY FIX: Nayi file ke liye Purana Namespace Clear Karein
-    # -------------------------------------------------------------
+    # Clean existing namespace completely before upserting
     try:
         index = pc.Index(index_name)
         index.delete(delete_all=True, namespace=namespace)
+        time.sleep(2)  # Pinecone deletion latency delay
         print(f"✅ Cleared existing vectors in namespace: '{namespace}'")
     except Exception as e:
-        print(f"ℹ️ Namespace reset skipped or empty: {e}")
+        print(f"ℹ️ Index clear log: {e}")
 
-    # Naye chunks ko Pinecone mein store karein
     return PineconeVectorStore.from_documents(
         documents=chunks,
         embedding=get_embeddings(),

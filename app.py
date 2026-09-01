@@ -47,13 +47,18 @@ if st.sidebar.button("Process & Index Document", use_container_width=True):
                 # Reset UI Messages for new document
                 st.session_state.messages = []
                 
+                # Dynamic isolated namespace based on file name
+                clean_filename = re.sub(r'[^a-zA-Z0-9_-]', '_', uploaded_file.name)
+                active_namespace = f"file-{clean_filename}"
+                st.session_state.active_namespace = active_namespace
+
                 chunks = process_file(uploaded_file, chunk_size, chunk_overlap)
                 
                 # Clears old namespace in Pinecone & builds new embeddings
-                build_vectorstore(chunks, index_name, namespace_input)
+                build_vectorstore(chunks, index_name, active_namespace)
                 
                 st.session_state.rag_chain, st.session_state.vectorstore = setup_rag_chain(
-                    index_name, selected_model, top_k, namespace_input
+                    index_name, selected_model, top_k, active_namespace
                 )
                 st.session_state.all_chunks = chunks
                 st.session_state.file_name = uploaded_file.name
@@ -150,7 +155,8 @@ if user_query := st.chat_input("Ask something about the document..."):
 
                     if "context" in response and response["context"] and "The answer is not available in the provided document." not in answer:
                         with st.expander("📄 Source Attribution & Metadata"):
-                            results = st.session_state.vectorstore.similarity_search_with_score(user_query, k=top_k, namespace=namespace_input)
+                            active_ns = st.session_state.get("active_namespace", namespace_input)
+                            results = st.session_state.vectorstore.similarity_search_with_score(user_query, k=top_k, namespace=active_ns)
                             for idx, (doc, score) in enumerate(results):
                                 st.markdown(f"**Source {idx+1}:** `{doc.metadata.get('source', 'Doc')}` | **Page:** `{doc.metadata.get('page', 'N/A')}` | **Chunk ID:** `{doc.metadata.get('chunk_id', 'N/A')}` | **Score:** `{score:.4f}`")
                                 st.caption(f'"{doc.page_content.strip()[:200]}..."')
