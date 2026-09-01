@@ -23,6 +23,7 @@ def build_vectorstore(chunks, index_name="rag-pdf-index", namespace="default"):
     pc = Pinecone(api_key=pinecone_key)
     existing_indexes = [idx.name for idx in pc.list_indexes()]
 
+    # Index create karein agar pehle se nahi bana
     if index_name not in existing_indexes:
         pc.create_index(
             name=index_name,
@@ -31,6 +32,17 @@ def build_vectorstore(chunks, index_name="rag-pdf-index", namespace="default"):
             spec=ServerlessSpec(cloud="aws", region="us-east-1")
         )
 
+    # -------------------------------------------------------------
+    # AUTO-CLEAR MEMORY FIX: Nayi file ke liye Purana Namespace Clear Karein
+    # -------------------------------------------------------------
+    try:
+        index = pc.Index(index_name)
+        index.delete(delete_all=True, namespace=namespace)
+        print(f"✅ Cleared existing vectors in namespace: '{namespace}'")
+    except Exception as e:
+        print(f"ℹ️ Namespace reset skipped or empty: {e}")
+
+    # Naye chunks ko Pinecone mein store karein
     return PineconeVectorStore.from_documents(
         documents=chunks,
         embedding=get_embeddings(),
@@ -52,7 +64,6 @@ def setup_rag_chain(index_name="rag-pdf-index", model_name="openai/gpt-oss-20b",
         namespace=namespace
     )
 
-    # MMR Search: Retrieves diverse chunks across pages (e.g., Page 1, Page 2)
     retriever = vectorstore.as_retriever(
         search_type="mmr",
         search_kwargs={"k": top_k, "fetch_k": 20}
@@ -62,7 +73,7 @@ def setup_rag_chain(index_name="rag-pdf-index", model_name="openai/gpt-oss-20b",
         api_key=groq_key,
         base_url="https://api.groq.com/openai/v1",
         model=model_name,
-        temperature=0.2  # Slight flexibility for engaging, natural dialogue
+        temperature=0.2
     )
 
     contextualize_prompt = ChatPromptTemplate.from_messages([
@@ -72,7 +83,6 @@ def setup_rag_chain(index_name="rag-pdf-index", model_name="openai/gpt-oss-20b",
     ])
     history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_prompt)
 
-    # Conversational yet Strictly Grounded Prompt
     system_prompt = (
         "You are an intelligent, articulate, and conversational AI Assistant for document analysis.\n\n"
         "CORE RULE - DOCUMENT LOCK: You are 100% bound to the provided Context. Your entire knowledge for this task is ONLY what is written in the Context below. No outside knowledge allowed.\n\n"

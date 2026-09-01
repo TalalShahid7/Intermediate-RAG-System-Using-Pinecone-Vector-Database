@@ -10,9 +10,9 @@ from langchain_openai import ChatOpenAI
 
 load_dotenv()
 
-st.set_page_config(page_title="Intermediate RAG System", page_icon="📘", layout="wide")
+st.set_page_config(page_title="Intermediate RAG System", page_icon="🤖", layout="wide")
 
-st.title("📘 Enterprise RAG System using Pinecone DB")
+st.title("🤖 Enterprise RAG System using Pinecone DB")
 
 st.sidebar.header("⚙️ Configuration")
 chunk_size = st.sidebar.slider("Chunk Size", 300, 2000, 1000, 100)
@@ -43,15 +43,22 @@ if st.sidebar.button("Process & Index Document", use_container_width=True):
         st.error("Please upload a document first.")
     else:
         try:
-            with st.spinner("Processing & Indexing..."):
+            with st.spinner("Clearing old index memory & Processing new document..."):
+                # Reset UI Messages for new document
+                st.session_state.messages = []
+                
                 chunks = process_file(uploaded_file, chunk_size, chunk_overlap)
+                
+                # Clears old namespace in Pinecone & builds new embeddings
                 build_vectorstore(chunks, index_name, namespace_input)
+                
                 st.session_state.rag_chain, st.session_state.vectorstore = setup_rag_chain(
                     index_name, selected_model, top_k, namespace_input
                 )
                 st.session_state.all_chunks = chunks
                 st.session_state.file_name = uploaded_file.name
-                st.success(f"Successfully indexed {len(chunks)} chunks!")
+                
+                st.success(f"Successfully cleared old index & loaded {len(chunks)} new chunks!")
         except Exception as e:
             st.error(f"Error: {e}")
 
@@ -87,13 +94,11 @@ if user_query := st.chat_input("Ask something about the document..."):
                 if page_match and "all_chunks" in st.session_state:
                     requested_page = int(page_match.group(1))
                     
-                    # 1. Check for PDFs with exact page numbers
                     matching_chunks = [
                         c for c in st.session_state.all_chunks 
                         if str(c.metadata.get("page")) == str(requested_page)
                     ]
 
-                    # 2. Fallback for Non-PDF files (DOCX/TXT/CSV) where page metadata is "N/A"
                     if not matching_chunks and requested_page == 1:
                         matching_chunks = [
                             c for c in st.session_state.all_chunks 
@@ -112,7 +117,6 @@ if user_query := st.chat_input("Ask something about the document..."):
                             temperature=0.2
                         )
                         
-                        # Added Chat History to direct page prompt for seamless flow
                         direct_prompt = ChatPromptTemplate.from_messages([
                             ("system", (
                                 "You are an AI Document Assistant.\n"
@@ -133,20 +137,19 @@ if user_query := st.chat_input("Ask something about the document..."):
                         answer = res.content
                         
                         st.markdown(answer)
-                        with st.expander("📌 Source Attribution & Metadata"):
+                        with st.expander("📄 Source Attribution & Metadata"):
                             for idx, doc in enumerate(matching_chunks):
                                 st.markdown(f"**Source {idx+1}:** `{doc.metadata.get('source', 'Doc')}` | **Page:** `{doc.metadata.get('page')}` | **Chunk ID:** `{doc.metadata.get('chunk_id')}`")
                                 st.caption(f'"{doc.page_content.strip()[:200]}..."')
                                 st.markdown("---")
 
-                # Standard RAG search if page matching wasn't applicable or required
                 if not page_handled:
                     response = st.session_state.rag_chain.invoke({"input": user_query, "chat_history": chat_history})
                     answer = response["answer"]
                     st.markdown(answer)
 
                     if "context" in response and response["context"] and "The answer is not available in the provided document." not in answer:
-                        with st.expander("📌 Source Attribution & Metadata"):
+                        with st.expander("📄 Source Attribution & Metadata"):
                             results = st.session_state.vectorstore.similarity_search_with_score(user_query, k=top_k, namespace=namespace_input)
                             for idx, (doc, score) in enumerate(results):
                                 st.markdown(f"**Source {idx+1}:** `{doc.metadata.get('source', 'Doc')}` | **Page:** `{doc.metadata.get('page', 'N/A')}` | **Chunk ID:** `{doc.metadata.get('chunk_id', 'N/A')}` | **Score:** `{score:.4f}`")
