@@ -94,6 +94,11 @@ def setup_rag_chain(index_name="rag-pdf-index", model_name="openai/gpt-oss-20b",
     "- MANDATORY FALLBACK: If the question cannot be answered from the provided Context, reply EXACTLY with:\n"
     "  'The answer is not available in the provided document.' (Do not alter this exact sentence).\n\n"
 
+    "GUIDELINES:\n"
+    "1. CONVERSATIONAL INTENT: If the user engages in normal conversational chitchat, greetings, or thanks (e.g., 'how are you?', 'thank you', 'who are you?'), respond politely and naturally in character without triggering the fallback statement.\n"
+    "2. DOCUMENT LOCK & STRICT ACCURACY: For factual questions about topic details, answer SOLELY based on the provided Context.\n"
+    "3. ABSENCE FALLBACK: Reply EXACTLY with 'The answer is not available in the provided document.' ONLY when the user asks a specific question about facts or topics that are completely missing from the Context."
+
     "=========================================\n"
     "2. CHAIN-OF-THOUGHT & REASONING (INTERNAL THOUGHT PROCESS)\n"
     "=========================================\n"
