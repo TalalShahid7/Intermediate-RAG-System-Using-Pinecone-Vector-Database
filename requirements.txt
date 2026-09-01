@@ -2,11 +2,12 @@ streamlit
 langchain
 langchain-community
 langchain-core
-langchain-groq
 langchain-pinecone
+langchain-groq
+langchain-huggingface
 pinecone-client
-sentence-transformers
+python-dotenv
 pypdf
 python-docx
 pandas
-python-dotenv
+pytesseract
