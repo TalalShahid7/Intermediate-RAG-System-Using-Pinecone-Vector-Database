@@ -40,8 +40,7 @@ def process_file(uploaded_file, chunk_size=1000, chunk_overlap=200):
             else:
                 for idx, doc in enumerate(docs):
                     doc.metadata["source"] = uploaded_file.name
-                    if "page" not in doc.metadata:
-                        doc.metadata["page"] = idx + 1
+                    doc.metadata["page"] = idx + 1
 
         elif file_extension == ".docx":
             docs = Docx2txtLoader(tmp_file_path).load()
